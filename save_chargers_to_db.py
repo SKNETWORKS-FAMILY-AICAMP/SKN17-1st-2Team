@@ -45,7 +45,7 @@ def fetch_charger_data():
     """API로부터 충전소 정보를 가져오는 함수"""
     url = 'http://apis.data.go.kr/B552584/EvCharger/getChargerInfo'
     params ={
-        'serviceKey' : 'ZL7JWlyrkMlnk0jfe0Q38dgi3vzJMj7nvAv58m4BCedDsI/iPJPS0sB3FZvOVBPFujQwoPqIt4xRzf8Exq/31w==',
+        'serviceKey' : '',
         'pageNo' : '1', 
         'numOfRows' : '9999'
     }
