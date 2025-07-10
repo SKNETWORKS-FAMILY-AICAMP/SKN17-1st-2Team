@@ -5,7 +5,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
-import json
 import mysql.connector
 from mysql.connector import Error
 
@@ -13,13 +12,13 @@ from mysql.connector import Error
 db_config = {
     'host': 'localhost',
     'user': 'sehee',
-    'password': 'sehee', # TODO: 실제 'sehee' 유저의 비밀번호를 확인하여 입력해주세요.
+    'password': 'sehee',
     'database': 'project1db' 
 }
 
 # --- 크롤링 설정 ---
 FRONTIER_FORD_FAQ_URL = "https://www.frontierford.com/faq/ford-electric-lineup.htm?srsltid=AfmBOooBqN_a6WwQzWidD_fI7v7RV0FVtLepfbByBUO7VGRhPYe_fvdT"
-CHROME_DRIVER_PATH = r"C:\Users\Playdata\OneDrive\바탕 화면\skn_17\python_basic\z_Cocon\chromedriver.exe"
+CHROME_DRIVER_PATH = 'chromedriver.exe'
 TOTAL_FAQ_ITEMS = 9 
 
 def setup_webdriver():
@@ -47,14 +46,6 @@ def scroll_to_bottom(driver):
             break
         last_height = new_height
     print("페이지 끝까지 스크롤 완료.")
-
-def save_to_json_file(data, filename="ford_electric_faq_data.json"):
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"크롤링 데이터가 '{filename}' 파일에 저장되었습니다.")
-    except Exception as e:
-        print(f"JSON 파일 저장 중 오류 발생: {e}")
 
 def setup_database():
     try:
@@ -91,7 +82,6 @@ def crawl_ford_faq():
     driver = None
     conn = None
     cursor = None
-    faq_data = []
 
     try:
         driver = setup_webdriver()
@@ -103,7 +93,7 @@ def crawl_ford_faq():
 
         conn, cursor = setup_database()
         if not conn or not cursor:
-            print("데이터베이스 설정 실패로 DB 저장 기능을 건너뜜.")
+            print("데이터베이스 설정 실패로 DB 저장 기능을 건너뜁니다.")
 
         # XPATH를 활용하여 질문과 답변 추출
         for i in range(1, TOTAL_FAQ_ITEMS + 1):
@@ -112,12 +102,12 @@ def crawl_ford_faq():
             
             # FAQ 항목 번호에 따라 다른 XPATH 패턴 적용
             if 1 <= i <= 4:
-                question_xpath = f'//*[@id="page-body"]/div[2]/div[1]/div[2]/div/h2[{i}]'
-                answer_xpath = f'//*[@id="page-body"]/div[2]/div[1]/div[2]/div/p[{i}]'
+                question_xpath = f'//*[ @id="page-body"]/div[2]/div[1]/div[2]/div/h2[{i}]'
+                answer_xpath = f'//*[ @id="page-body"]/div[2]/div[1]/div[2]/div/p[{i}]'
             elif 5 <= i <= 9:
                 relative_index = i - 4 
-                question_xpath = f'//*[@id="page-body"]/div[2]/div[1]/div[4]/div/h2[{relative_index}]'
-                answer_xpath = f'//*[@id="page-body"]/div[2]/div[1]/div[4]/div/p[{relative_index}]'
+                question_xpath = f'//*[ @id="page-body"]/div[2]/div[1]/div[4]/div/h2[{relative_index}]'
+                answer_xpath = f'//*[ @id="page-body"]/div[2]/div[1]/div[4]/div/p[{relative_index}]'
             else:
                 print(f"경고: 예상치 못한 FAQ 항목 번호 {i}. 건너뜁니다.")
                 continue
@@ -129,8 +119,7 @@ def crawl_ford_faq():
                 answer_element = driver.find_element(By.XPATH, answer_xpath)
                 content = answer_element.text.strip()
 
-                faq_data.append({'title': title, 'content': content})
-                print(f"데이터 수집 완료 ({len(faq_data)}/{TOTAL_FAQ_ITEMS}): {title[:30]}...")
+                print(f"데이터 수집 완료 ({i}/{TOTAL_FAQ_ITEMS}): {title[:30]}...")
 
                 if conn and cursor:
                     insert_data_to_db(cursor, conn, {'title': title, 'content': content})
@@ -150,9 +139,6 @@ def crawl_ford_faq():
         if driver:
             driver.quit()
             print("웹 드라이버 종료.")
-        
-        if faq_data:
-            save_to_json_file(faq_data)
         
         if cursor:
             cursor.close()

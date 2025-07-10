@@ -139,7 +139,7 @@
 
 6. ERD
 
-![ERD 시각화 이미지](image/erd_cocon.png)
+*~~7. 주요 프로시저~~*
 
 
 
