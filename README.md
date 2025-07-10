@@ -17,7 +17,6 @@
     나아가겠다는 의지를 팀명에 담아봤습니다.
 
     앞으로 COCON이 보여드릴 멋진 모습에 많은 기대 부탁드립니다."
-    [![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&width=435&lines=The+five+boxing+wizards+jump+quickly)](https://git.io/typing-svg)
 #
 ## 2. 프로젝트 개요
 
