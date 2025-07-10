@@ -38,7 +38,7 @@
 
 저희 프로젝트는 다음과 같은 기술 스택을 활용하여 개발되었습니다.
 
-| 기술 스택 |
+| 기술 스택 | 로고 자리 |
 | :------- | :---: |
 | **Python** | ![Python Logo](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) |
 
