@@ -97,13 +97,17 @@
 
 저희 프로젝트는 다음과 같은 기술 스택을 활용하여 개발되었습니다.
 
-| 기술 스택 | 로고 |
+| 기술 스택 |
 | :------- | :---: |
 | **Python** | ![Python Logo](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) |
 
 ---
 
-## 4. WBS (Work Breakdown Structure)
+## WBS (Work Breakdown Structure)
 
+## 요구사항 명세서
 
+## 수행 결과(시연 페이지)
+
+## 한줄 회고고
 
