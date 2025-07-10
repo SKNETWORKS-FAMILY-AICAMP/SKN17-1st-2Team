@@ -6,10 +6,21 @@ from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 import json
+import mysql.connector
+from mysql.connector import Error
+
+# mysql 연결
+db_config = {
+    'host': 'localhost',
+    'user': 'sehee',
+    'password': 'sehee',
+    'database': 'project1db' 
+}
+
 
 # --- 설정 ---
 KIA_FAQ_URL = "https://www.kia.com/kr/customer-service/center/faq"
-CHROME_DRIVER_PATH = r"C:\Users\Playdata\OneDrive\바탕 화면\skn_17\python_basic\z_Cocon\chromedriver.exe"
+CHROME_DRIVER_PATH = "chromedriver.exe"
 
 def setup_webdriver():
     options = webdriver.ChromeOptions()
