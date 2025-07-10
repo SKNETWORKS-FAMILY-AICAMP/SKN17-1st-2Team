@@ -46,6 +46,8 @@
 
 #
 3. 기술 스택
+ <img src="https://img.shields.io/badge/python-#3776AB?style=flat&logo=TypeScript&logoColor=white"/>
+
 
 4. WBS
 
