@@ -1,118 +1,333 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import numpy as np
 import os
 from datetime import datetime
 
+
+# Streamlit의 secrets.toml에 설정된 DB 연결 정보를 사용해 연결 객체를 생성합니다.
+# 이 연결은 캐싱되어 성능을 최적화합니다.
+conn = st.connection(
+    "mysql",
+    type="sql",
+    dialect="mysql",
+    host="localhost",
+    database="project1db",
+    username="sehee",
+    password="sehee"
+)
+
 # 페이지 설정
 st.set_page_config(page_title="전기차 통계 대시보드", layout="wide")
 
-# CSV 경로 설정
-DATA_DIR = r"C:\python_basic\Project"
 
 @st.cache_data
-def load_csv(filename):
-    path = os.path.join(DATA_DIR, filename)
-    return pd.read_csv(path, parse_dates=["RegistrationMonth"])
+def load_new_reg_data():
+    # e_car 테이블과 regi 테이블을 조인하여 신규 차량 등록 데이터를 가져옵니다.
+    query = """
+    SELECT
+        r.r_name AS Sido,
+        ec.e_year AS Year,
+        ec.e_ener AS CarType,
+        ec.e_new AS RegisteredCount
+    FROM
+        e_car ec
+    JOIN
+        regi r ON ec.r_code = r.r_code;
+    """
+    df = conn.query(query, ttl="1h")
+    return df
+
+@st.cache_data
+def load_total_reg_data():
+    # car 테이블과 regi 테이블을 조인하여 총 차량 등록 데이터를 가져옵니다.
+    query = """
+    SELECT
+        r.r_name AS Sido,
+        c.year AS Year,
+        c.RegisteredCount AS TotalRegistered
+    FROM
+        car c
+    JOIN
+        regi r ON c.r_code = r.r_code;
+    """
+    df = conn.query(query, ttl="1h")
+    return df
 
 @st.cache_data
 def load_faq_data():
-    kor = pd.read_csv("faq_data_kor.csv")
-    eng = pd.read_csv("faq_data_eng.csv")
-    key = pd.read_csv("faq_data_key.csv")
-    return kor, eng, key
+    # kia_faq (한국어 FAQ) 테이블에서 데이터를 가져옵니다.
+    faq_kor_query = "SELECT faq_id, title, content, key_num FROM kia_faq;"
+    faq_kor = conn.query(faq_kor_query, ttl="1h")
+
+    # ford_faq (영어 FAQ) 테이블에서 데이터를 가져옵니다.
+    faq_eng_query = "SELECT faq_id, title, content, key_num FROM ford_faq;"
+    faq_eng = conn.query(faq_eng_query, ttl="1h")
+
+    # keyword 테이블에서 데이터를 가져옵니다.
+    key_query = "SELECT key_num, key_name FROM keyword;"
+    key = conn.query(key_query, ttl="1h")
+
+    return faq_kor, faq_eng, key
 
 @st.cache_data
 def load_charger_data():
-    df = pd.read_csv("chargers.csv")
+    # chargers 테이블에서 데이터를 가져옵니다.
+    query = "SELECT unique_id, lat, lng, r_code FROM chargers;"
+    df = conn.query(query, ttl="1h")
     return df
 
+@st.cache_data
+def load_regional_charger_data():
+    # 지역별 충전소 수를 계산합니다.
+    query = """
+    SELECT
+        r.r_name AS RegionName,
+        r.lat AS lat,
+        r.lon AS lon,
+        COUNT(c.unique_id) AS ChargerCount
+    FROM
+        chargers c
+    JOIN
+        regi r ON c.r_code = r.r_code
+    GROUP BY
+        r.r_name, r.lat, r.lon;
+    """
+    df = conn.query(query, ttl="1h")
+    return df
+
+@st.cache_data
+def load_shortage_analysis_data():
+    # 지역별 전기차/하이브리드차 등록 대수
+    car_query = """
+    SELECT
+        r.r_name AS RegionName,
+        SUM(ec.e_new) AS TotalEVHybridCars
+    FROM
+        e_car ec
+    JOIN
+        regi r ON ec.r_code = r.r_code
+    WHERE
+        ec.e_ener IN ('전기', '하이브리드')
+    GROUP BY
+        r.r_name;
+    """
+    cars_df = conn.query(car_query, ttl="1h")
+
+    # 지역별 충전소 수
+    charger_query = """
+    SELECT
+        r.r_name AS RegionName,
+        COUNT(c.unique_id) AS TotalChargers
+    FROM
+        chargers c
+    JOIN
+        regi r ON c.r_code = r.r_code
+    GROUP BY
+        r.r_name;
+    """
+    chargers_df = conn.query(charger_query, ttl="1h")
+
+    # 데이터프레임 병합
+    merged_df = pd.merge(cars_df, chargers_df, on="RegionName", how="outer").fillna(0)
+
+    # 차량 1대당 충전소 수 계산 (충전소가 0개인 경우 무한대 처리)
+    merged_df["CarsPerCharger"] = merged_df.apply(
+        lambda row: row["TotalEVHybridCars"] / row["TotalChargers"] if row["TotalChargers"] > 0 else np.inf,
+        axis=1
+    )
+    merged_df = merged_df.sort_values(by="CarsPerCharger", ascending=False)
+    return merged_df
+
+@st.cache_data
+def load_ev_hybrid_new_reg_data():
+    # 지역별 전기차/하이브리드차 신규 등록 대수
+    ev_hybrid_query = """
+    SELECT
+        r.r_name AS RegionName,
+        SUM(ec.e_new) AS EVHybridNewReg
+    FROM
+        e_car ec
+    JOIN
+        regi r ON ec.r_code = r.r_code
+    WHERE
+        ec.e_ener IN ('전기', '하이브리드')
+    GROUP BY
+        r.r_name;
+    """
+    ev_hybrid_df = conn.query(ev_hybrid_query, ttl="1h")
+
+    ev_hybrid_df = ev_hybrid_df.sort_values(by="EVHybridNewReg", ascending=False)
+    return ev_hybrid_df
+
 # ------------------ 사이드 메뉴 ------------------
-st.sidebar.title("📊 메뉴")
-menu = st.sidebar.radio("이동할 기능을 선택하세요", ["차량 등록 통계", "충전소 인프라", "FAQ 검색", "통계 분석"])
+st.sidebar.title(" 메뉴")
+menu = st.sidebar.radio("이동할 기능을 선택하세요", ["차량 등록 통계", "충전소 인프라", "FAQ 검색"])
 
 # ------------------ 차량 등록 통계 ------------------
 if menu == "차량 등록 통계":
-    st.title("🚗 차량 등록 통계 대시보드")
-    st.markdown("차량 등록 현황을 지역과 기간별로 시각화합니다.")
+    st.title("차량 등록 통계 대시보드")
+    st.markdown("전기차/하이브리드차 신규 등록 및 전체 차량 대비 등록 현황을 시각화합니다.")
 
-    col1, col2, col3 = st.columns(3)
+    analysis_type = st.selectbox("분석 유형 선택", ["연도별 신규 등록 추이", "전체 차량 대비 누적 등록 비율"])
+
+    df_new_reg_raw = load_new_reg_data()
+    df_total_reg_raw = load_total_reg_data()
+
+    col1, col2 = st.columns(2)
     with col1:
-        region = st.selectbox("지역 선택", ["전국", "서울", "경기", "부산", "대구", "광주"])
+        regions_query = "SELECT DISTINCT r_name FROM regi;"
+        available_regions = conn.query(regions_query, ttl="1h")['r_name'].tolist()
+        region = st.selectbox("지역 선택", ["전국"] + sorted(available_regions))
     with col2:
-        vehicle_type = st.selectbox("차량 유형", ["전체", "승용", "화물"])
-    with col3:
-        car_type = st.selectbox("차종", ["전체", "전기", "하이브리드"])
+        cartypes_query = "SELECT DISTINCT e_ener FROM e_car;"
+        available_cartypes = conn.query(cartypes_query, ttl="1h")['e_ener'].tolist()
+        car_type = st.selectbox("차종", ["전체"] + sorted(available_cartypes))
 
     year_range = st.slider("기간 선택 (연도)", 2021, 2025, (2021, 2025), step=1)
-    df = load_csv("Monthly_Registration_Summary.csv")
+
+    # Filter data based on selection
+    df_new_reg = df_new_reg_raw.copy()
+    df_total_reg = df_total_reg_raw.copy()
 
     if region != "전국":
-        df = df[df["Sido"] == region]
-    if vehicle_type != "전체":
-        df = df[df["VehicleType"] == vehicle_type]
+        df_new_reg = df_new_reg[df_new_reg["Sido"] == region]
+        df_total_reg = df_total_reg[df_total_reg["Sido"] == region]
 
-    monthly_sum = (
-        df.groupby("RegistrationMonth")["RegisteredCount"]
-        .sum()
-        .reset_index()
-        .sort_values("RegistrationMonth")
-    )
-    monthly_sum["월간증가량"] = monthly_sum["RegisteredCount"].diff().fillna(0)
-    monthly_sum["Year"] = monthly_sum["RegistrationMonth"].dt.year
+    if car_type != "전체":
+        df_new_reg = df_new_reg[df_new_reg["CarType"] == car_type]
 
-    filtered = monthly_sum[
-        (monthly_sum["Year"] >= year_range[0]) & (monthly_sum["Year"] <= year_range[1])
-    ]
+    df_new_reg = df_new_reg[(df_new_reg['Year'] >= year_range[0]) & (df_new_reg['Year'] <= year_range[1])]
+    df_total_reg = df_total_reg[(df_total_reg['Year'] >= year_range[0]) & (df_total_reg['Year'] <= year_range[1])]
 
-    yearly_df = (
-        filtered.groupby("Year")["월간증가량"]
-        .sum()
-        .reset_index()
-        .rename(columns={"Year": "연도", "월간증가량": "등록대수"})
-    )
+    if analysis_type == "연도별 신규 등록 추이":
+        st.subheader(f"'{region}' 지역 '{car_type}' 차량 신규 등록 대수 추이")
 
-    st.subheader("📈 등록 대수 추이 (실제 신규 등록)")
-    if yearly_df.empty:
-        st.warning("해당 조건에 맞는 데이터가 없습니다.")
-    else:
-        st.line_chart(yearly_df.set_index("연도"))
-        total = yearly_df["등록대수"].sum()
-        growth_rate = yearly_df["등록대수"].pct_change().mean() * 100
-        st.metric(label="총 등록대수", value=f"{total:,.0f} 대")
-        st.metric(label="연평균 증가율", value=f"{growth_rate:.1f}%")
+        yearly_sum = df_new_reg.groupby("Year")["RegisteredCount"].sum().reset_index()
+
+        if yearly_sum.empty:
+            st.warning("해당 조건에 맞는 데이터가 없습니다.")
+        else:
+            st.line_chart(yearly_sum.set_index("Year")["RegisteredCount"])
+            total = yearly_sum["RegisteredCount"].sum()
+            st.metric(label=f"기간 내 총 신규 등록 대수", value=f"{total:,.0f} 대")
+
+            # 연평균 증가율 계산
+            if len(yearly_sum) > 1:
+                start_count = yearly_sum["RegisteredCount"].iloc[0]
+                end_count = yearly_sum["RegisteredCount"].iloc[-1]
+                num_years = len(yearly_sum) - 1
+                if start_count > 0 and num_years > 0:
+                    cagr = ((end_count / start_count)**(1/num_years) - 1) * 100 if num_years > 0 else 0.0
+                else:
+                    cagr = 0.0
+            else:
+                cagr = 0.0
+            st.metric(label="연평균 증가율 (CAGR)", value=f"{cagr:.1f}%")
+
+    elif analysis_type == "전체 차량 대비 누적 등록 비율":
+        st.subheader(f"'{region}' 지역 '{car_type}' 차량의 전체 차량 대비 누적 등록 비율")
+
+        # Group by year and sum new registrations
+        new_reg_by_year = df_new_reg.groupby('Year')['RegisteredCount'].sum().reset_index()
+        new_reg_by_year['CumulativeCount'] = new_reg_by_year['RegisteredCount'].cumsum()
+
+        # Group by year and sum total registrations
+        total_reg_by_year = df_total_reg.groupby('Year')['TotalRegistered'].sum().reset_index()
+
+        # Merge the two dataframes
+        merged_df = pd.merge(new_reg_by_year, total_reg_by_year, on="Year", how="inner")
+
+        if merged_df.empty:
+            st.warning("비교할 데이터가 없습니다. 기간이나 지역을 다시 선택해주세요.")
+        else:
+            # Calculate ratio
+            merged_df['Ratio'] = (merged_df['CumulativeCount'] / merged_df['TotalRegistered']) * 100
+
+            st.line_chart(merged_df.set_index("Year")["Ratio"])
+
+            latest_year_data = merged_df.iloc[-1]
+            st.metric(
+                label=f"{int(latest_year_data['Year'])}년 누적 등록 대수 ({car_type})",
+                value=f"{latest_year_data['CumulativeCount']:,.0f} 대"
+            )
+            st.metric(
+                label=f"{int(latest_year_data['Year'])}년 전체 등록 대수",
+                value=f"{latest_year_data['TotalRegistered']:,.0f} 대"
+            )
+            st.metric(
+                label=f"{int(latest_year_data['Year'])}년 등록 비율",
+                value=f"{latest_year_data['Ratio']:.2f}%"
+            )
 
 # ------------------ 충전소 인프라 ------------------
 elif menu == "충전소 인프라":
-    st.title("🔌 충전소 인프라 분포도")
-    st.markdown("전국 충전소 위치를 지도에서 확인할 수 있습니다.")
+    st.title(" 충전소 인프라 분포도")
+    st.markdown("전국 충전소 위치 및 지역별 분포를 확인할 수 있습니다.")
 
-    df = load_charger_data()
+    df_chargers = load_charger_data()
+    df_regional_chargers = load_regional_charger_data()
 
-    st.subheader("🗺️ 전국 충전소 지도")
-    if "lat" in df.columns and "lng" in df.columns:
-        map_df = df.rename(columns={"lat": "lat", "lng": "lon"})
-        st.map(map_df)
+    st.subheader("️ 지역별 충전소 분포 지도")
+    if not df_regional_chargers.empty:
+        fig = px.scatter_mapbox(
+            df_regional_chargers,
+            lat="lat",
+            lon="lon",
+            size="ChargerCount",
+            color="ChargerCount",
+            hover_name="RegionName",
+            hover_data={"ChargerCount": True, "lat": False, "lon": False},
+            color_continuous_scale=px.colors.sequential.Viridis,
+            size_max=40,
+            zoom=5.5,
+            center=dict(lat=36.2, lon=127.8),
+            mapbox_style="open-street-map",
+            title="지역별 충전소 수"
+        )
+        fig.update_layout(
+            mapbox_style="open-street-map",
+            margin={"r":0,"t":40,"l":0,"b":0}
+        )
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("위도 및 경도 정보가 부족하여 지도를 표시할 수 없습니다.")
 
-    st.subheader("🔍 충전소 샘플")
-    st.write(f"총 충전소 수: {len(df):,} 개")
-    st.dataframe(df.head(20))
+    st.subheader(" 지역별 전기/하이브리드차 신규 등록 대수")
+    ev_hybrid_df = load_ev_hybrid_new_reg_data()
+    if not ev_hybrid_df.empty:
+        st.dataframe(ev_hybrid_df)
+        fig_ev_hybrid = px.bar(
+            ev_hybrid_df,
+            x="RegionName",
+            y="EVHybridNewReg",
+            title="지역별 전기/하이브리드차 신규 등록 대수",
+            labels={"RegionName": "지역", "EVHybridNewReg": "신규 등록 대수"},
+            color="EVHybridNewReg",
+            color_continuous_scale=px.colors.sequential.Plasma
+        )
+        st.plotly_chart(fig_ev_hybrid, use_container_width=True)
+    else:
+        st.info("전기/하이브리드차 신규 등록 대수를 분석할 데이터가 충분하지 않습니다.")
+
+
 
 # ------------------ FAQ 검색 ------------------
 elif menu == "FAQ 검색":
     st.title("❓ 전기차 FAQ 검색 시스템")
-    faq_kor, faq_eng, faq_key = load_faq_data()
+    faq_kor, faq_eng, faq_key = load_faq_data() # DB에서 데이터 로드
+
     language = st.radio("언어 선택", ["한국어", "English"], horizontal=True)
     faq_df = faq_kor if language == "한국어" else faq_eng
-    df = faq_df.merge(faq_key, on="key_num", how="left")
+    df_faq_merged = faq_df.merge(faq_key, on="key_num", how="left")
 
-    category_options = ["전체"] + sorted(df["key_name"].dropna().unique().tolist())
+    # DB에서 가져온 key_name을 기반으로 카테고리 선택
+    category_options = ["전체"] + sorted(df_faq_merged["key_name"].dropna().unique().tolist())
     selected_category = st.selectbox("카테고리 선택", category_options)
     query = st.text_input("궁금한 내용을 입력하세요:")
 
-    results = df.copy()
+    results = df_faq_merged.copy()
     if selected_category != "전체":
         results = results[results["key_name"] == selected_category]
     if query.strip():
@@ -128,28 +343,3 @@ elif menu == "FAQ 검색":
         for _, row in results.iterrows():
             with st.expander(f"Q. {row['title']}"):
                 st.markdown(f"{row['content']}")
-
-# # ------------------ 통계 분석 ------------------
-# elif menu == "통계 분석":
-#     st.title("📊 통계 분석 (데이터 연결 예정)")
-#     st.info("데이터가 연결되면 아래에 다양한 분석 시각화가 표시될 예정입니다.")
-#     st.markdown("예시 차트 영역 (현재는 임시 데이터)")
-#     df_demo = pd.DataFrame({
-#         "월": pd.date_range("2025-01", periods=6, freq="M"),
-#         "전기차 등록": np.random.randint(500, 2000, size=6)
-#     })
-#     st.bar_chart(df_demo.set_index("월"))
-#     st.warning("🚧 이 영역은 추후 통계 분석 자료와 연동됩니다.")
-
-
-
-elif menu == "종료":
-    st.title("👋 앱 종료 안내")
-    st.info("""
-        이 Streamlit 애플리케이션을 종료하려면,
-        앱을 실행한 **터미널(명령 프롬프트) 창**으로 돌아가서
-        `Ctrl + C` 키를 누르세요.
-        """)
-    st.warning("브라우저 탭을 닫는다고 해서 앱 서버가 종료되는 것은 아닙니다.")
-
-
