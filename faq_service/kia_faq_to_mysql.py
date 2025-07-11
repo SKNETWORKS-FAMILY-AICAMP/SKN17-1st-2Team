@@ -8,8 +8,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import mysql.connector
 from mysql.connector import Error
 
-# --- 설정 ---
-# MySQL 데이터베이스 연결 정보
+
 db_config = {
     'host': 'localhost',
     'user': 'sehee',
@@ -60,7 +59,7 @@ def save_to_mysql(faq_data, db_config):
             print("MySQL 데이터베이스에 연결되었습니다.")
             cursor = conn.cursor()
 
-            # 테이블 생성 (없을 경우)
+    
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS kia_faq (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -97,7 +96,7 @@ def crawl_kia_faq():
         driver.get(KIA_FAQ_URL)
         time.sleep(3)
 
-        # 검색창에 '전기차' 입력 및 엔터
+    
         search_input_xpath = '//*[@id="searchName"]'
         try:
             search_input = driver.find_element(By.XPATH, search_input_xpath)
@@ -109,11 +108,11 @@ def crawl_kia_faq():
             print(f"오류: 검색창 '{search_input_xpath}'를 찾을 수 없습니다.")
             return
 
-        # 페이지 끝까지 스크롤하여 모든 FAQ 항목 로드
+        
         scroll_to_bottom(driver)
         time.sleep(3)
 
-        # 모든 질문 제목 찾기 및 데이터 추출
+        
         question_buttons_xpath = '//*[starts-with(@id, "accordion-item-") and contains(@id, "-button")]'
         
         retries = 3
@@ -128,13 +127,12 @@ def crawl_kia_faq():
                     break
 
                 for i in range(total_questions):
-                    # 각 루프마다 요소를 다시 찾아서 StaleElementReferenceException 방지
                     try:
                         button = driver.find_element(By.ID, f"accordion-item-{i}-button")
                         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
                         time.sleep(0.5)
                         
-                        # ElementClickInterceptedException을 피하기 위해 JavaScript 클릭 사용
+                      
                         driver.execute_script("arguments[0].click();", button)
                         time.sleep(1)
 
@@ -147,19 +145,19 @@ def crawl_kia_faq():
                         
                     except StaleElementReferenceException:
                         print(f"경고: {i}번째 질문 버튼이 오래된 요소가 되었습니다. 다시 시도합니다.")
-                        # 요소를 다시 찾기 위해 루프를 다시 시작할 수 있지만, 여기서는 다음으로 넘어갑니다.
+                        
                         continue
                     except Exception as e:
                         print(f"오류: {i}번째 질문 처리 중 예상치 못한 오류 발생: {e}")
                         continue
                 
-                break # 성공적으로 모든 항목을 처리했으면 재시도 루프 종료
-
+                break
+                
             except StaleElementReferenceException:
                 print(f"경고: 질문 목록 요소가 오래된 참조가 되었습니다. {attempt + 1}/{retries}회 재시도합니다.")
                 driver.refresh()
                 time.sleep(5)
-                # 검색을 다시 수행해야 할 수 있음
+                
                 search_input = driver.find_element(By.XPATH, search_input_xpath)
                 search_input.send_keys("전기차")
                 search_input.send_keys(Keys.ENTER)
@@ -181,7 +179,7 @@ def crawl_kia_faq():
         if driver:
             driver.quit()
         
-        # 크롤링이 끝나면 데이터베이스에 저장
+       
         if faq_data:
             save_to_mysql(faq_data, db_config)
 
