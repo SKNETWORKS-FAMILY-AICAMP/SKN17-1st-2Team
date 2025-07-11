@@ -8,13 +8,19 @@ from datetime import datetime
 st.set_page_config(page_title="전기차 통계 대시보드", layout="wide")
 
 # CSV 경로 설정
- # 실제 데이터 경로에 맞게 조정하세요
-DATA_DIR = r"C:\Users\Playdata\OneDrive\바탕 화면\skn_17\python_basic\Project" 
+DATA_DIR = r"C:\python_basic\Project"  # 필요 시 수정
 
 @st.cache_data
 def load_csv(filename):
     path = os.path.join(DATA_DIR, filename)
     return pd.read_csv(path, parse_dates=['RegistrationMonth'])
+
+@st.cache_data
+def load_faq_data():
+    kor = pd.read_csv("faq_data_kor.csv")
+    eng = pd.read_csv("faq_data_eng.csv")
+    key = pd.read_csv("faq_data_key.csv")
+    return kor, eng, key
 
 # ------------------ 사이드 메뉴 ------------------
 st.sidebar.title("📊 메뉴")
@@ -29,11 +35,10 @@ if menu == "차량 등록 통계":
     with col1:
         region = st.selectbox("지역 선택", ["전국", "서울", "경기", "부산", "대구", "광주"])
     with col2:
-        vehicle_type = st.selectbox("차량 유형", ["전체", "승용", "화물"])  # ✅ 승합, 특수 제거됨
+        vehicle_type = st.selectbox("차량 유형", ["전체", "승용", "화물"])
     with col3:
-        car_type = st.selectbox("차종", ["전체", "전기", "하이브리드"])  # ✅ 형식만 구성 (현재 필터 없음)
+        car_type = st.selectbox("차종", ["전체", "전기", "하이브리드"])
 
-    # ✅ 월 단위 기간 선택
     month_range = st.slider(
         "기간 선택 (월)",
         min_value=datetime(2021, 5, 1),
@@ -42,22 +47,14 @@ if menu == "차량 등록 통계":
         format="YYYY-MM"
     )
 
-    # ✅ CSV 데이터 로드
     df = load_csv("Monthly_Registration_Summary.csv")
 
-    # 🔍 지역 필터링
     if region != "전국":
         df = df[df["Sido"] == region]
 
-    # 🔍 차량 유형 필터링
     if vehicle_type != "전체":
         df = df[df["VehicleType"] == vehicle_type]
 
-    # 🔍 차종 필터링 (현재는 데이터 없음 → 추후 CarType 컬럼 추가 시 사용)
-    # if car_type != "전체":
-    #     df = df[df["CarType"] == car_type]
-
-    # ✅ 월별 누적 등록대수를 월간 증가량으로 변환
     monthly_sum = (
         df.groupby("RegistrationMonth")["RegisteredCount"]
         .sum()
@@ -67,13 +64,11 @@ if menu == "차량 등록 통계":
     monthly_sum["월간증가량"] = monthly_sum["RegisteredCount"].diff().fillna(0)
     monthly_sum["Year"] = monthly_sum["RegistrationMonth"].dt.year
 
-    # ✅ 월 범위 필터 적용
     filtered = monthly_sum[
         (monthly_sum["RegistrationMonth"] >= month_range[0]) &
         (monthly_sum["RegistrationMonth"] <= month_range[1])
     ]
 
-    # ✅ 연도별 집계
     yearly_df = (
         filtered.groupby(filtered["RegistrationMonth"].dt.year)["월간증가량"]
         .sum()
@@ -120,20 +115,37 @@ elif menu == "충전소 인프라":
 
 # ------------------ FAQ 검색 ------------------
 elif menu == "FAQ 검색":
-    st.title("❓ FAQ 검색 시스템")
-    st.markdown("자주 묻는 질문을 검색하고 답변을 확인하세요.")
+    st.title("❓ 전기차 FAQ 검색 시스템")
 
-    question = st.text_input("무엇이 궁금한가요?")
-    category = st.selectbox("FAQ 카테고리", ["전체", "차량 등록", "충전소", "보조금", "환경규제"])
+    faq_kor, faq_eng, faq_key = load_faq_data()
+    language = st.radio("언어 선택", ["한국어", "English"], horizontal=True)
+    faq_df = faq_kor if language == "한국어" else faq_eng
+    df = faq_df.merge(faq_key, on="key_num", how="left")
 
-    if st.button("검색"):
-        st.subheader("🔍 검색 결과 (예시)")
-        with st.expander("Q. 전기차 보조금은 얼마나 받을 수 있나요?"):
-            st.write("A. 지역별로 다르며 최대 약 700만원까지 받을 수 있습니다.")
-        with st.expander("Q. 충전소 고장은 어디에 신고하나요?"):
-            st.write("A. 환경부 무공해차 통합누리집 또는 관할 지자체에 신고하세요.")
+    category_options = ["전체"] + sorted(df["key_name"].dropna().unique().tolist())
+    selected_category = st.selectbox("카테고리 선택", category_options)
+    query = st.text_input("궁금한 내용을 입력하세요:")
 
-# ------------------ 통계 분석 자리 ------------------
+    results = df.copy()
+
+    if selected_category != "전체":
+        results = results[results["key_name"] == selected_category]
+
+    if query.strip():
+        results = results[
+            results["title"].str.contains(query, case=False, na=False) |
+            results["content"].str.contains(query, case=False, na=False)
+        ]
+
+    if results.empty:
+        st.warning("표시할 FAQ가 없습니다. 카테고리나 검색어를 다시 확인해주세요.")
+    else:
+        st.success(f"총 {len(results)}건의 FAQ를 찾았습니다.")
+        for _, row in results.iterrows():
+            with st.expander(f"Q. {row['title']}"):
+                st.markdown(f"{row['content']}")
+
+# ------------------ 통계 분석 ------------------
 elif menu == "통계 분석":
     st.title("📊 통계 분석 (데이터 연결 예정)")
     st.info("데이터가 연결되면 아래에 다양한 분석 시각화가 표시될 예정입니다.")
@@ -146,13 +158,3 @@ elif menu == "통계 분석":
     st.bar_chart(df_demo.set_index("월"))
 
     st.warning("🚧 이 영역은 추후 통계 분석 자료와 연동됩니다.")
-
-# ------------------ 종료 메뉴 ------------------
-elif menu == "종료":
-    st.title("👋 앱 종료 안내")
-    st.info("""
-        이 Streamlit 애플리케이션을 종료하려면,
-        앱을 실행한 **터미널(명령 프롬프트) 창**으로 돌아가서
-        `Ctrl + C` 키를 누르세요.
-        """)
-    st.warning("브라우저 탭을 닫는다고 해서 앱 서버가 종료되는 것은 아닙니다.")
