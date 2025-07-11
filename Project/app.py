@@ -39,22 +39,31 @@ if menu == "차량 등록 통계":
     with col3:
         car_type = st.selectbox("차종", ["전체", "전기", "하이브리드"])
 
-    month_range = st.slider(
-        "기간 선택 (월)",
-        min_value=datetime(2021, 5, 1),
-        max_value=datetime(2025, 5, 1),
-        value=(datetime(2021, 5, 1), datetime(2025, 5, 1)),
-        format="YYYY-MM"
+    # ✅ 연도 단위 슬라이더
+    year_range = st.slider(
+        "기간 선택 (연도)",
+        min_value=2021,
+        max_value=2025,
+        value=(2021, 2025),
+        step=1
     )
 
+    # ✅ CSV 데이터 로드
     df = load_csv("Monthly_Registration_Summary.csv")
 
+    # 🔍 지역 필터링
     if region != "전국":
         df = df[df["Sido"] == region]
 
+    # 🔍 차량 유형 필터링
     if vehicle_type != "전체":
         df = df[df["VehicleType"] == vehicle_type]
 
+    # 🔍 차종 필터링 (현재는 데이터 없음 → 추후 CarType 컬럼 추가 시 사용)
+    # if car_type != "전체":
+    #     df = df[df["CarType"] == car_type]
+
+    # ✅ 월별 누적 등록대수를 월간 증가량으로 변환
     monthly_sum = (
         df.groupby("RegistrationMonth")["RegisteredCount"]
         .sum()
@@ -64,16 +73,18 @@ if menu == "차량 등록 통계":
     monthly_sum["월간증가량"] = monthly_sum["RegisteredCount"].diff().fillna(0)
     monthly_sum["Year"] = monthly_sum["RegistrationMonth"].dt.year
 
+    # ✅ 연도 범위 필터 적용
     filtered = monthly_sum[
-        (monthly_sum["RegistrationMonth"] >= month_range[0]) &
-        (monthly_sum["RegistrationMonth"] <= month_range[1])
+        (monthly_sum["Year"] >= year_range[0]) &
+        (monthly_sum["Year"] <= year_range[1])
     ]
 
+    # ✅ 연도별 집계
     yearly_df = (
-        filtered.groupby(filtered["RegistrationMonth"].dt.year)["월간증가량"]
+        filtered.groupby("Year")["월간증가량"]
         .sum()
         .reset_index()
-        .rename(columns={"RegistrationMonth": "연도", "월간증가량": "등록대수"})
+        .rename(columns={"Year": "연도", "월간증가량": "등록대수"})
     )
 
     st.subheader("📈 등록 대수 추이 (실제 신규 등록)")
