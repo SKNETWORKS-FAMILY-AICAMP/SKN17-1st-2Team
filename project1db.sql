@@ -18,6 +18,7 @@ ALTER TABLE chargers DROP COLUMN status;
 ALTER TABLE chargers DROP COLUMN power_output;
 ALTER TABLE chargers DROP COLUMN parking_free;
 ALTER TABLE chargers DROP COLUMN last_update_dt;
+ALTER TABLE chargers DROP COLUMN address;
 
 DESCRIBE chargers;
 
@@ -25,35 +26,40 @@ drop table registgrccode;
 
 create table regi(
 	r_code int primary key,
-    r_name varchar(20)
+    r_name varchar(20),
+    lat DECIMAL(10, 8),
+    lon DECIMAL(11, 8)
 );
 
-INSERT INTO 
+alter table regi add lat DECIMAL(10, 8);
+alter table regi add lon DECIMAL(11, 8);
+
+replace into
     regi
-VALUES 
-    (1, '서울'),
-    (2, '부산'),
-    (3, '대구'),
-    (4, '인천'),
-    (5, '광주'),
-    (6, '대전'),
-    (7, '울산'),
-    (8, '세종'),
-    (9, '경기'),
-    (10, '강원'),
-    (11, '충북'),
-    (12, '충남'),
-    (13, '전북'),
-    (14, '전남'),
-    (15, '경북'),
-    (16, '경남'),
-    (17, '제주');
+values 
+    (1, '서울', 37.566535, 126.9779692),
+    (2, '부산', 35.1795543, 129.0756416),
+    (3, '대구', 35.8714354, 128.601445),
+    (4, '인천', 37.4562557, 126.7052062),
+    (5, '광주', 35.1595454, 126.8526012),
+    (6, '대전', 36.3504119, 127.3845475),
+    (7, '울산', 35.538377, 129.311360),
+    (8, '세종', 36.480207, 127.289769),
+    (9, '경기', 37.275000, 127.000000),
+    (10, '강원', 37.555833, 128.200000),
+    (11, '충북', 36.635667, 127.491667),
+    (12, '충남', 36.658611, 126.672500),
+    (13, '전북', 35.716667, 127.150000),
+    (14, '전남', 34.850000, 126.700000),
+    (15, '경북', 36.250000, 128.500000),
+    (16, '경남', 35.233333, 128.250000),
+    (17, '제주', 33.366667, 126.533333);
     
 select r_code, r_name from regi;
 
 ALTER TABLE chargers ADD COLUMN r_code INT;
 
-SET SQL_SAFE_UPDATES = 0;
+SET SQL_SAFE_UPDATES = 1;
 
 UPDATE chargers
 SET r_code = CASE
@@ -88,7 +94,7 @@ select * from chargers;
 
 select r_code, count(*) from chargers group by r_code;
 
-select * from ford_faq;
+select * from car;
 
 drop table e_car;
 
@@ -112,7 +118,9 @@ create table car(
         RegisteredCount int
 );
 
-select * from e_car;
+select * from car;
+
+drop table car;
 
 ALTER TABLE car DROP COLUMN sigungu;
 
@@ -142,7 +150,7 @@ SET r_code = CASE
     ELSE NULL
 END;
 
-alter TABLE car add constraint foreign key (r_code)
+alter TABLE e_car add constraint foreign key (r_code)
 references regi (r_code) on DELETE CASCADE;
 
 ALTER TABLE car DROP COLUMN sido;
@@ -150,6 +158,10 @@ ALTER TABLE car DROP COLUMN vehicletype;
 
 ALTER TABLE e_car ADD COLUMN r_code INT;
 ALTER TABLE e_car DROP COLUMN e_mon;
+
+select * from e_car;
+
+SET SQL_SAFE_UPDATES = 1;
 
 UPDATE e_car
 SET r_code = CASE
@@ -186,7 +198,7 @@ select * from kia_faq;
 
 select * from car;
 
-SET SQL_SAFE_UPDATES = 0;
+SET SQL_SAFE_UPDATES = 1;
 
 ALTER TABLE car ADD COLUMN year INT;
 
@@ -233,7 +245,9 @@ create table keyword (
 INSERT INTO keyword VALUES 
 (1, '전기'), (2, '하이브리드');
 
-select * from keyword;
+use project1db;
+
+select * from ford_faq;
 
 ALTER TABLE kia_faq ADD COLUMN key_num INT;
 ALTER TABLE ford_faq ADD COLUMN key_num INT;
@@ -257,3 +271,9 @@ references keyword (key_num) on DELETE CASCADE;
 
 alter TABLE ford_faq add constraint foreign key (key_num)
 references keyword (key_num) on DELETE CASCADE;
+
+COMMIT;
+
+select * from chargers;
+
+select * from keyword;
