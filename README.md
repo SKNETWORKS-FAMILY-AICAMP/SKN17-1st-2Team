@@ -47,6 +47,19 @@
 
 ---
 
+## 📦 데이터 출처 목록
+
+| 데이터 이름                           | 파일 형식 / 수집 방법 | 출처 URL |
+|--------------------------------------|------------------------|----------|
+| 전국 전기차 충전소 표준데이터         | API / XML              | [바로가기](https://www.data.go.kr/data/15013115/standard.do) |
+| 지역별, 월별 전기차 현황정보 (통계)   | 직접 다운로드 / CSV    | [바로가기](https://www.data.go.kr/data/15039554/fileData.do) |
+| 지역, 월별 차량 등록 현황 (통계)      | 직접 다운로드 / CSV    | [바로가기](https://stat.molit.go.kr/portal/cate/statView.do?hRsId=58&hFormId=5498&hSelectId=1244&hPoint=00&hAppr=1&hDivEng=&oFileName=&rFileName=&midpath=&sFormId=5498&sStyleNum=562&settingRadio=xlsx) |
+| 현대자동차 홈페이지 FAQ               | Selenium 라이브러리     | [바로가기](https://www.hyundai.co.kr/main/mainRecommend) |
+| 포드자동차 홈페이지 FAQ              | Selenium 라이브러리     | [바로가기](https://www.frontierford.com/faq/ford-electric-lineup.htm?srsltid=AfmBOooBqN_a6WwQzWidD_fI7v7RV0FVtLepfbByBUO7VGRhPYe_fvdT) |
+| 자동차 종합정보 신규등록정보 (2024)   | API 수집                | [바로가기](https://www.stgdata.co.kr/data/15059401/openapi.do?recommendDataYn=Y) |
+
+---
+
 # 3. 기술스택
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white">
@@ -103,5 +116,6 @@
 
 조세희:
 충전소 인프라와 친환경차 등록 현황의 연관성 분석을 통해, 지역의 작은 데이터 변화가 전체 시장에 큰 영향을 미치며, 이러한 미묘한 특성을 반영한 분석 방식 조정이 모델의 예측력을 크게 높인다는 것을 실감했습니다.
+
 
 
