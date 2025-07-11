@@ -6,7 +6,7 @@
 
  ### "안녕하세요! 저희는 2조, COCON입니다. ✨
 
-      저희 팀명 COCON은 'Coding Conqueror'의 약자로, 
+      ** 저희 팀명 COCON은 'Coding Conqueror'의 약자로, **
 
       코딩 분야에서 최고의 전문가가 되겠다는 저희의 강력한 의지를 담고 있습니다. 
 
