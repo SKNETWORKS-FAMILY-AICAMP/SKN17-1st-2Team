@@ -92,7 +92,8 @@
 
 # 6. ERD
 
-![ERD 시각화 이미지](image/erd_cocon.png)
+![ERD 시각화 이미지](image/1.png)
+![ERD 시각화 이미지](image/2.png)
 
 ---
 
