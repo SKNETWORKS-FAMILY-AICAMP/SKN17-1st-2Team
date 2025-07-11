@@ -7,14 +7,15 @@
 
     김주서 https://github.com/kimjuseo71
 
-    조세희 https://github.com/SEHEE-8546
-
-    임산별 https://github.com/ImMountainStar
-
+    성기혁 https://github.com/venus241004
+  
     이가은 https://github.com/Leegaeune
 
-    성기혁 https://github.com/venus241004
+    임산별 https://github.com/ImMountainStar
+  
+    조세희 https://github.com/SEHEE-8546
 
+  
 
 # 2. 프로젝트개요
 
@@ -115,7 +116,6 @@
 - **범위:** 2011년 1월 ~ 2025년 5월
 - **주요 컬럼:**
     - 연도(Year)
-    - 월(Month)
     - 시도(Region)
     - 등록대수(Registration Count)
 
@@ -150,5 +150,6 @@
 # 9. 한 줄 회고
 
 복잡한 사회 데이터를 구조화하고, 그것이 실제 기업 전략에 연결될 수 있다는 가능성을 체감한 시간이었다.
-
 불투명하고 복잡한 현실 세계의 정보를 완벽하게 담아내는 것은 불가능하지만, 그 안에서 의미 있는 데이터를 추출하고, 이를 바탕으로 근거 있는 전략을 설계하는 과정을 직접 수행할 수 있었다.
+
+
