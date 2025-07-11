@@ -1,8 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
+from datetime import datetime
 
+# 페이지 설정
 st.set_page_config(page_title="전기차 통계 대시보드", layout="wide")
+
+# CSV 경로 설정
+DATA_DIR = r"C:\python_basic\Project"  # 실제 데이터 경로에 맞게 조정하세요
+
+@st.cache_data
+def load_csv(filename):
+    path = os.path.join(DATA_DIR, filename)
+    return pd.read_csv(path, parse_dates=['RegistrationMonth'])
 
 # ------------------ 사이드 메뉴 ------------------
 st.sidebar.title("📊 메뉴")
@@ -15,23 +26,63 @@ if menu == "차량 등록 통계":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        region = st.selectbox("지역 선택", ["서울", "경기", "부산", "대구", "광주"])
+        region = st.selectbox("지역 선택", ["전국", "서울", "경기", "부산", "대구", "광주"])
     with col2:
         vehicle_type = st.selectbox("차량 유형", ["승용", "화물", "승합", "특수"])
     with col3:
         car_type = st.selectbox("차종", ["전기", "수소", "하이브리드", "내연기관"])
 
-    year_range = st.slider("기간 선택 (년도)", 2011, 2025, (2018, 2025))
+    # ✅ 월 단위 기간 선택
+    month_range = st.slider(
+        "기간 선택 (월)",
+        min_value=datetime(2021, 5, 1),
+        max_value=datetime(2025, 5, 1),
+        value=(datetime(2021, 5, 1), datetime(2025, 5, 1)),
+        format="YYYY-MM"
+    )
 
-    st.subheader("📈 등록 대수 추이 (예시 데이터)")
-    df = pd.DataFrame({
-        "연도": list(range(year_range[0], year_range[1] + 1)),
-        "등록대수": np.random.randint(10000, 50000, year_range[1] - year_range[0] + 1)
-    })
-    st.line_chart(df.set_index("연도"))
+    # ✅ CSV 데이터 로드
+    df = load_csv("Monthly_Registration_Summary.csv")
 
-    st.metric(label="총 등록대수", value=f"{df['등록대수'].sum():,} 대")
-    st.metric(label="연평균 증가율", value=f"{df['등록대수'].pct_change().mean()*100:.1f}%")
+    # 🔍 지역 필터링
+    if region != "전국":
+        df = df[df["Sido"] == region]
+
+    # ✅ 월별 누적 등록대수를 월간 증가량으로 변환
+    monthly_sum = (
+        df.groupby("RegistrationMonth")["RegisteredCount"]
+        .sum()
+        .reset_index()
+        .sort_values("RegistrationMonth")
+    )
+    monthly_sum["월간증가량"] = monthly_sum["RegisteredCount"].diff().fillna(0)
+    monthly_sum["Year"] = monthly_sum["RegistrationMonth"].dt.year
+
+    # ✅ 월 범위 필터 적용
+    filtered = monthly_sum[
+        (monthly_sum["RegistrationMonth"] >= month_range[0]) &
+        (monthly_sum["RegistrationMonth"] <= month_range[1])
+    ]
+
+    # ✅ 연도별 집계
+    yearly_df = (
+        filtered.groupby(filtered["RegistrationMonth"].dt.year)["월간증가량"]
+        .sum()
+        .reset_index()
+        .rename(columns={"RegistrationMonth": "연도", "월간증가량": "등록대수"})
+    )
+
+    st.subheader("📈 등록 대수 추이 (실제 신규 등록)")
+    if yearly_df.empty:
+        st.warning("해당 조건에 맞는 데이터가 없습니다.")
+    else:
+        st.line_chart(yearly_df.set_index("연도"))
+
+        total = yearly_df["등록대수"].sum()
+        growth_rate = yearly_df["등록대수"].pct_change().mean() * 100
+
+        st.metric(label="총 등록대수", value=f"{total:,.0f} 대")
+        st.metric(label="연평균 증가율", value=f"{growth_rate:.1f}%")
 
 # ------------------ 충전소 인프라 ------------------
 elif menu == "충전소 인프라":
