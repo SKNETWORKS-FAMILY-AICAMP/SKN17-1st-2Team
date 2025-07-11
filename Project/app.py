@@ -28,9 +28,9 @@ if menu == "차량 등록 통계":
     with col1:
         region = st.selectbox("지역 선택", ["전국", "서울", "경기", "부산", "대구", "광주"])
     with col2:
-        vehicle_type = st.selectbox("차량 유형", ["승용", "화물", "승합", "특수"])
+        vehicle_type = st.selectbox("차량 유형", ["전체", "승용", "화물"])  # ✅ 승합, 특수 제거됨
     with col3:
-        car_type = st.selectbox("차종", ["전기", "수소", "하이브리드", "내연기관"])
+        car_type = st.selectbox("차종", ["전체", "전기", "하이브리드"])  # ✅ 형식만 구성 (현재 필터 없음)
 
     # ✅ 월 단위 기간 선택
     month_range = st.slider(
@@ -47,6 +47,14 @@ if menu == "차량 등록 통계":
     # 🔍 지역 필터링
     if region != "전국":
         df = df[df["Sido"] == region]
+
+    # 🔍 차량 유형 필터링
+    if vehicle_type != "전체":
+        df = df[df["VehicleType"] == vehicle_type]
+
+    # 🔍 차종 필터링 (현재는 데이터 없음 → 추후 CarType 컬럼 추가 시 사용)
+    # if car_type != "전체":
+    #     df = df[df["CarType"] == car_type]
 
     # ✅ 월별 누적 등록대수를 월간 증가량으로 변환
     monthly_sum = (
